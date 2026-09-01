@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>微博热搜实时监控系统 · 项目介绍</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #cc785c; --primary-active: #a9583e; --on-primary: #ffffff;
+    --ink: #141413; --body: #3d3d3a; --body-strong: #252523;
+    --muted: #6c6a64; --muted-soft: #8e8b82;
+    --hairline: #e6dfd8; --hairline-soft: #ebe6df;
+    --canvas: #faf9f5; --surface-soft: #f5f0e8; --surface-card: #efe9de; --surface-cream-strong: #e8e0d2;
+    --accent-teal: #5db8a6; --accent-amber: #e8a55a;
+    --success: #5db872; --error: #c64545; --warning: #d4a017;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--canvas); color: var(--body);
+    font-family: Inter, system-ui, sans-serif;
+    font-size: 1rem; line-height: 1.55; -webkit-font-smoothing: antialiased;
+  }
+  .font-display { font-family: Georgia, "Cormorant Garamond", serif; font-weight: 400; }
+  .mono { font-family: "JetBrains Mono", Consolas, monospace; font-size: 0.875rem; }
+
+  /* ========== 布局：左导航 + 右内容 ========== */
+  .layout { display: flex; min-height: 100vh; }
+  aside {
+    width: 264px; position: fixed; top: 0; left: 0; bottom: 0;
+    background: var(--canvas); border-right: 1px solid var(--hairline);
+    display: flex; flex-direction: column; padding: 28px 20px; z-index: 10;
+  }
+  main { margin-left: 264px; flex: 1; min-width: 0; }
+  .content { max-width: 920px; margin: 0 auto; padding: 0 40px 96px; }
+
+  /* ========== 侧栏 ========== */
+  .brand { display: flex; align-items: center; gap: 10px; padding: 4px 10px 24px; border-bottom: 1px solid var(--hairline-soft); }
+  .brand svg { width: 26px; height: 26px; color: var(--primary); }
+  .brand .name { font-family: Georgia, serif; font-size: 1.25rem; color: var(--ink); letter-spacing: -0.3px; }
+  .brand .sub { font-size: 0.72rem; color: var(--muted-soft); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+  nav { margin-top: 20px; display: flex; flex-direction: column; gap: 4px; }
+  nav a {
+    display: flex; align-items: center; gap: 10px; text-decoration: none;
+    color: var(--muted); font-size: 0.9rem; font-weight: 500;
+    padding: 9px 12px; border-radius: 8px; transition: all .2s;
+  }
+  nav a .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--hairline); transition: all .2s; flex: none; }
+  nav a:hover { background: var(--surface-soft); color: var(--ink); }
+  nav a.active { background: var(--surface-card); color: var(--ink); }
+  nav a.active .dot { background: var(--primary); }
+  .sidebar-foot { margin-top: auto; padding-top: 20px; border-top: 1px solid var(--hairline-soft); }
+  .gh-link {
+    display: flex; align-items: center; gap: 9px; text-decoration: none;
+    color: var(--ink); font-size: 0.875rem; font-weight: 500;
+    background: var(--primary); color: var(--on-primary);
+    padding: 10px 14px; border-radius: 8px; transition: background .2s;
+  }
+  .gh-link:hover { background: var(--primary-active); }
+  .sidebar-note { font-size: 0.75rem; color: var(--muted-soft); margin-top: 12px; line-height: 1.5; }
+
+  /* ========== 通用排版 ========== */
+  section { padding-top: 72px; }
+  .kicker {
+    font-size: 0.75rem; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--primary); margin-bottom: 10px;
+  }
+  h1 { font-size: 3.4rem; line-height: 1.08; letter-spacing: -1.5px; color: var(--ink); font-weight: 400; }
+  h2 { font-size: 2rem; line-height: 1.15; letter-spacing: -0.5px; color: var(--ink); font-weight: 400; margin-bottom: 8px; }
+  .lead { font-size: 1.05rem; color: var(--muted); margin-top: 14px; max-width: 640px; }
+  .divider { border: 0; border-top: 1px solid var(--hairline); margin: 56px 0 0; }
+  p { margin-top: 12px; }
+  strong { color: var(--body-strong); }
+
+  .card {
+    background: var(--surface-card); border-radius: 12px; padding: 26px;
+  }
+  .badge {
+    display: inline-block; background: var(--primary); color: var(--on-primary);
+    font-size: 0.72rem; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;
+    padding: 5px 12px; border-radius: 9999px; margin-right: 8px;
+  }
+  .badge-pill {
+    display: inline-block; background: var(--surface-card); color: var(--ink);
+    font-size: 0.8rem; font-weight: 500; padding: 5px 12px; border-radius: 9999px;
+  }
+
+  /* Hero */
+  .hero { padding-top: 88px; }
+  .hero .badges { margin-top: 26px; }
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 36px; }
+  .stat { background: var(--surface-card); border-radius: 12px; padding: 22px; text-align: center; }
+  .stat .num { font-family: Georgia, serif; font-size: 2.1rem; color: var(--primary); }
+  .stat .lbl { font-size: 0.82rem; color: var(--muted); margin-top: 4px; }
+
+  /* 架构图 */
+  .pipeline { display: flex; align-items: stretch; gap: 0; margin-top: 28px; flex-wrap: wrap; }
+  .pipe-node {
+    background: var(--surface-card); border-radius: 10px; padding: 14px 18px;
+    text-align: center; flex: 1; min-width: 128px; border: 1px solid var(--hairline);
+  }
+  .pipe-node .t { font-weight: 500; color: var(--ink); font-size: 0.92rem; }
+  .pipe-node .d { font-size: 0.75rem; color: var(--muted); margin-top: 3px; }
+  .pipe-arrow { display: flex; align-items: center; padding: 0 8px; color: var(--primary); font-size: 1.1rem; }
+
+  /* 技术栈 */
+  .stack-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 28px; }
+  .tech { background: var(--surface-card); border-radius: 12px; padding: 20px; transition: transform .2s; }
+  .tech:hover { transform: translateY(-2px); }
+  .tech .name { font-weight: 500; color: var(--ink); font-size: 1rem; }
+  .tech .use { font-size: 0.84rem; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+  .tech .tag { font-size: 0.72rem; letter-spacing: 1.2px; text-transform: uppercase; color: var(--accent-teal); font-weight: 500; }
+  .group-title { font-size: 1.1rem; color: var(--ink); font-weight: 500; margin: 32px 0 4px; display: flex; align-items: center; gap: 8px; }
+  .group-title::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
+
+  /* 核心内容模块卡 */
+  .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 28px; }
+  .feature { background: var(--surface-card); border-radius: 12px; padding: 24px; }
+  .feature .icon { width: 38px; height: 38px; border-radius: 10px; background: var(--surface-cream-strong); display: flex; align-items: center; justify-content: center; font-size: 1.15rem; margin-bottom: 14px; }
+  .feature h3 { font-size: 1.05rem; color: var(--ink); font-weight: 500; }
+  .feature p { font-size: 0.88rem; color: var(--muted); margin-top: 8px; line-height: 1.6; }
+  .feature .meta { margin-top: 12px; font-size: 0.76rem; color: var(--muted-soft); }
+
+  /* 截图画廊 */
+  .shot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 28px; }
+  .shot { display: block; text-decoration: none; }
+  .shot .frame {
+    border: 1px solid var(--hairline); border-radius: 12px; overflow: hidden;
+    background: #fff; box-shadow: 0 1px 3px rgba(20,20,19,.05);
+    transition: transform .25s, box-shadow .25s;
+  }
+  .shot:hover .frame { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(20,20,19,.12); }
+  .shot img { width: 100%; display: block; }
+  .shot .cap { font-size: 0.85rem; color: var(--muted); margin-top: 8px; display: flex; justify-content: space-between; }
+  .shot .cap b { color: var(--ink); font-weight: 500; }
+
+  /* 启动方式 */
+  .steps { counter-reset: step; margin-top: 28px; display: flex; flex-direction: column; gap: 18px; }
+  .step { background: var(--surface-card); border-radius: 12px; padding: 22px 24px; position: relative; }
+  .step::before {
+    counter-increment: step; content: counter(step);
+    position: absolute; top: 20px; left: -14px; width: 28px; height: 28px; border-radius: 50%;
+    background: var(--primary); color: var(--on-primary); font-size: 0.85rem; font-weight: 500;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step h3 { font-size: 1rem; color: var(--ink); font-weight: 500; margin-left: 6px; }
+  .step .desc { font-size: 0.85rem; color: var(--muted); margin: 6px 0 0 6px; }
+  .term {
+    background: #181715; color: #faf9f5; border-radius: 10px; padding: 16px 18px;
+    margin-top: 12px; overflow-x: auto; font-size: 0.85rem; line-height: 1.7;
+  }
+  .term .cmt { color: #8e8b82; }
+  .term .cmd { color: #e8e0d2; }
+  .term .hl { color: #e8a55a; }
+
+  .note {
+    background: var(--surface-soft); border-left: 3px solid var(--warning);
+    border-radius: 0 10px 10px 0; padding: 16px 20px; font-size: 0.88rem; color: var(--body); margin-top: 24px;
+  }
+  .note b { color: var(--ink); }
+
+  footer { margin-top: 96px; padding-top: 28px; border-top: 1px solid var(--hairline); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+  footer .l { font-size: 0.84rem; color: var(--muted); }
+  footer a { color: var(--primary); text-decoration: none; font-weight: 500; }
+  footer a:hover { text-decoration: underline; }
+
+  /* 响应式 */
+  @media (max-width: 960px) {
+    aside { position: static; width: 100%; flex-direction: column; border-right: 0; border-bottom: 1px solid var(--hairline); padding: 18px 20px; }
+    main { margin-left: 0; }
+    nav { flex-direction: row; flex-wrap: wrap; margin-top: 14px; }
+    .sidebar-foot { display: none; }
+    .content { padding: 0 20px 72px; }
+    h1 { font-size: 2.4rem; }
+    .stat-grid, .stack-grid { grid-template-columns: repeat(2, 1fr); }
+    .feature-grid, .shot-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ======= 左侧导航栏 ======= -->
+  <aside>
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+        <path d="M12 2 L12 22 M2 12 L22 12" stroke="currentColor" stroke-width="2"/>
+      </svg>
+      <div>
+        <div class="name">热搜分析</div>
+        <div class="sub">Weibo Monitor</div>
+      </div>
+    </div>
+
+    <nav id="nav">
+      <a href="#intro" class="active"><span class="dot"></span>项目介绍</a>
+      <a href="#background"><span class="dot"></span>项目背景</a>
+      <a href="#stack"><span class="dot"></span>技术栈</a>
+      <a href="#core"><span class="dot"></span>核心内容</a>
+      <a href="#screenshots"><span class="dot"></span>运行截图</a>
+      <a href="#run"><span class="dot"></span>启动方式</a>
+    </nav>
+
+    <div class="sidebar-foot">
+      <a class="gh-link" href="https://github.com/19870034424/weibo-hotsearch-analysis" target="_blank" rel="noopener">
+        <svg width="17" height="17" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub 仓库
+      </a>
+      <div class="sidebar-note">数据来源于微博公开接口，<br>仅用于学习与技术交流。</div>
+    </div>
+  </aside>
+
+  <!-- ======= 右侧内容栏 ======= -->
+  <main>
+    <div class="content">
+
+      <!-- 1. 项目介绍 -->
+      <section id="intro" class="hero">
+        <div class="kicker">Project Intro</div>
+        <h1>微博热搜实时监控系统</h1>
+        <p class="lead">
+          一个<strong>全自动</strong>的微博热搜采集、分析与可视化系统：常驻服务每 15 分钟自动爬取热搜榜单，
+          自动完成聚类、预测、情感、异常检测等全部分析，Vue3 前端实时呈现结果，并支持基于大模型的智能问答。
+        </p>
+        <div class="badges">
+          <span class="badge">Vue 3</span><span class="badge">FastAPI</span><span class="badge">Python</span>
+          <span class="badge-pill">scikit-learn</span>
+          <span class="badge-pill">XGBoost</span>
+          <span class="badge-pill">SnowNLP</span>
+          <span class="badge-pill">Qwen 大模型</span>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat"><div class="num">7</div><div class="lbl">功能页面</div></div>
+          <div class="stat"><div class="num">15<span style="font-size:1.1rem">min</span></div><div class="lbl">自动采集周期</div></div>
+          <div class="stat"><div class="num">5</div><div class="lbl">分析模块</div></div>
+          <div class="stat"><div class="num">0</div><div class="lbl">人工干预次数</div></div>
+        </div>
+
+        <div class="pipeline">
+          <div class="pipe-node"><div class="t">定时爬取</div><div class="d">微博热搜 API</div></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node"><div class="t">CSV 存储</div><div class="d">按天分区 · 原子写入</div></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node"><div class="t">分析流水线</div><div class="d">聚类/预测/情感/异常</div></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node"><div class="t">FastAPI</div><div class="d">/api/data · /api/chat</div></div>
+          <div class="pipe-arrow">→</div>
+          <div class="pipe-node"><div class="t">Vue3 前端</div><div class="d">实时刷新 · 智能问答</div></div>
+        </div>
+      </section>
+
+      <hr class="divider">
+
+      <!-- 2. 项目背景 -->
+      <section id="background">
+        <div class="kicker">Background</div>
+        <h2>项目背景</h2>
+        <p class="lead">热搜榜是中文互联网最直观的舆情风向标——但"看见榜单"和"理解榜单"之间隔着采集、清洗、分析、呈现整整一条链路。</p>
+
+        <p>这个项目最初只有一个用 Streamlit 快速搭起来的小爬虫：能抓数据、能画图，但每一步都要人手动触发——爬一次、跑一次分析、刷一次页面。在持续迭代中它经历了三次架构演进，最终成为一个真正的"监控系统"：</p>
+
+        <div class="steps">
+          <div class="step">
+            <h3>阶段一 · Streamlit 原型</h3>
+            <p class="desc">爬虫 + 分析 + 界面一体的快速验证，跑通了微博接口反爬、数据存储和基础分析，但界面不可定制、无法响应新数据。</p>
+          </div>
+          <div class="step">
+            <h3>阶段二 · 前后端分离（Vue3 + 独立分析）</h3>
+            <p class="desc">用 Vue3 按设计稿重构界面，分析模块模块化拆分；但前端与后端尚未打通，数据存在"两张皮"问题。</p>
+          </div>
+          <div class="step">
+            <h3>阶段三 · 一体化实时架构（现在）</h3>
+            <p class="desc">引入 FastAPI 作为唯一数据出口：服务内置自动监控线程，定时爬取 → 自动分析 → 前端每分钟拉取最新结果。删除了所有冗余界面与死代码，只保留一个入口、一套界面。</p>
+          </div>
+        </div>
+
+        <div class="note">
+          <b>工程上最重要的一课：</b>"实时"不是界面好看，而是数据链路的每一环都能自动响应变化——这也是本项目架构设计的出发点。
+        </div>
+      </section>
+
+      <hr class="divider">
+
+      <!-- 3. 技术栈 -->
+      <section id="stack">
+        <div class="kicker">Tech Stack</div>
+        <h2>技术栈</h2>
+        <p class="lead">所有依赖与代码实际 import 一一对应，没有一个"装饰性依赖"。</p>
+
+        <div class="group-title">后端 · Python</div>
+        <div class="stack-grid">
+          <div class="tech"><div class="name">FastAPI + uvicorn</div><div class="use">API 服务与静态托管，内置自动监控线程</div></div>
+          <div class="tech"><div class="name">requests</div><div class="use">微博热搜 API 采集，UA 轮换与重试</div></div>
+          <div class="tech"><div class="name">pandas / numpy</div><div class="use">数据清洗、特征工程与分析产物读写</div></div>
+          <div class="tech"><div class="name">scikit-learn</div><div class="use">K-Means 聚类、孤立森林、逻辑回归基线</div></div>
+          <div class="tech"><div class="name">XGBoost</div><div class="use">热度排名预测模型（与随机森林对比选优）</div></div>
+          <div class="tech"><div class="name">jieba</div><div class="use">中文分词与词频统计</div></div>
+          <div class="tech"><div class="name">SnowNLP</div><div class="use">话题标题情感打分</div></div>
+          <div class="tech"><div class="name">PyYAML</div><div class="use">配置驱动：爬取间隔、存储路径、阈值</div></div>
+        </div>
+
+        <div class="group-title">前端 · Vue 3</div>
+        <div class="stack-grid">
+          <div class="tech"><div class="name">Vue 3 + Vue Router</div><div class="use">组合式 API 构建的 7 个功能页面</div></div>
+          <div class="tech"><div class="name">Vite</div><div class="use">开发热更新与生产构建，/api 代理</div></div>
+          <div class="tech"><div class="name">Tailwind CSS</div><div class="use">统一设计令牌：暖色纸感界面</div></div>
+          <div class="tech"><div class="name">Chart.js</div><div class="use">折线图 / 柱状图 / 环形图可视化</div></div>
+        </div>
+
+        <div class="group-title">智能问答</div>
+        <div class="stack-grid">
+          <div class="tech"><div class="name">通义千问（Qwen）</div><div class="use">后端代理调用，自动附带最新热搜作为上下文</div></div>
+        </div>
+      </section>
+
+      <hr class="divider">
+
+      <!-- 4. 核心内容 -->
+      <section id="core">
+        <div class="kicker">Core Features</div>
+        <h2>核心内容</h2>
+        <p class="lead">五个分析模块 + 一个大模型问答，全部基于真实爬取数据运行。</p>
+
+        <div class="feature-grid">
+          <div class="feature">
+            <div class="icon">📡</div>
+            <h3>实时采集与自动监控</h3>
+            <p>UA 轮换、重试退避、请求间隔应对反爬；状态监控记录每次爬取健康度，重启后自动恢复历史统计。服务常驻后完全无需人工干预。</p>
+            <div class="meta">requests · threading · 原子写入</div>
+          </div>
+          <div class="feature">
+            <div class="icon">🎯</div>
+            <h3>话题生命周期聚类</h3>
+            <p>以峰值热度、持续时长、上榜次数等 17 维特征对话题做 K-Means 聚类，轮廓系数自动寻优 K，自动归纳爆发型、长尾型等生命周期形态。</p>
+            <div class="meta">K-Means · 轮廓系数寻优</div>
+          </div>
+          <div class="feature">
+            <div class="icon">📈</div>
+            <h3>热搜排名预测</h3>
+            <p>严格的时间外推任务：只用 t 时刻之前的历史预测下一时刻能否进入 TOP10/TOP5，按时间切分训练/测试集，仅展示样本外结果与"预测 vs 实际"对比。</p>
+            <div class="meta">RandomForest / XGBoost / 时间切分防泄露</div>
+          </div>
+          <div class="feature">
+            <div class="icon">💭</div>
+            <h3>情感分析</h3>
+            <p>对话题标题做情感打分与极性占比统计，按小时呈现正面/负面/中性趋势。页面明确标注方法论边界：反映话题措辞色彩，不等同于公众情绪。</p>
+            <div class="meta">SnowNLP · 诚实边界标注</div>
+          </div>
+          <div class="feature">
+            <div class="icon">🔍</div>
+            <h3>异常检测</h3>
+            <p>统计法（均值±3σ、排名突变）与孤立森林双路检测，自动识别极高热度、爆款话题、新晋与消失话题，按"话题×类型"去重呈现。</p>
+            <div class="meta">Isolation Forest · IQR / Z-Score</div>
+          </div>
+          <div class="feature">
+            <div class="icon">🤖</div>
+            <h3>大模型智能问答</h3>
+            <p>后端代理调用 Qwen，自动把最新榜单 TOP10 与统计信息注入上下文，支持多轮对话与推荐问题；未配置密钥时优雅降级并给出引导。</p>
+            <div class="meta">Qwen · Context Injection · 多轮会话</div>
+          </div>
+        </div>
+      </section>
+
+      <hr class="divider">
+
+      <!-- 5. 运行截图 -->
+      <section id="screenshots">
+        <div class="kicker">Screenshots</div>
+        <h2>运行截图</h2>
+        <p class="lead">以下均为系统实际运行画面（点击可查看大图）。</p>
+
+        <div class="shot-grid">
+          <a class="shot" href="screenshots/home.png" target="_blank">
+            <div class="frame"><img src="screenshots/home.png" alt="实时热搜" loading="lazy"></div>
+            <div class="cap"><b>实时热搜</b><span>真实榜单 · 小时分布 · 标签分布</span></div>
+          </a>
+          <a class="shot" href="screenshots/prediction.png" target="_blank">
+            <div class="frame"><img src="screenshots/prediction.png" alt="趋势预测" loading="lazy"></div>
+            <div class="cap"><b>趋势预测</b><span>时间外推 · 预测 vs 实际</span></div>
+          </a>
+          <a class="shot" href="screenshots/clustering.png" target="_blank">
+            <div class="frame"><img src="screenshots/clustering.png" alt="聚类分析" loading="lazy"></div>
+            <div class="cap"><b>聚类分析</b><span>K-Means 自动寻优 · 生命周期命名</span></div>
+          </a>
+          <a class="shot" href="screenshots/sentiment.png" target="_blank">
+            <div class="frame"><img src="screenshots/sentiment.png" alt="情感分析" loading="lazy"></div>
+            <div class="cap"><b>情感分析</b><span>极性占比 · 小时趋势</span></div>
+          </a>
+          <a class="shot" href="screenshots/anomaly.png" target="_blank">
+            <div class="frame"><img src="screenshots/anomaly.png" alt="异常检测" loading="lazy"></div>
+            <div class="cap"><b>异常检测</b><span>爆款话题 · 排名突变 · 话题消失</span></div>
+          </a>
+          <a class="shot" href="screenshots/wordcloud.png" target="_blank">
+            <div class="frame"><img src="screenshots/wordcloud.png" alt="词频分析" loading="lazy"></div>
+            <div class="cap"><b>词频分析</b><span>jieba 分词 · 词云</span></div>
+          </a>
+          <a class="shot" href="screenshots/chat.png" target="_blank">
+            <div class="frame"><img src="screenshots/chat.png" alt="智能问答" loading="lazy"></div>
+            <div class="cap"><b>智能问答</b><span>Qwen 大模型 · 热搜上下文</span></div>
+          </a>
+        </div>
+      </section>
+
+      <hr class="divider">
+
+      <!-- 6. 启动方式 -->
+      <section id="run">
+        <div class="kicker">Getting Started</div>
+        <h2>启动方式</h2>
+        <p class="lead">两条命令装好依赖，一条命令启动整个系统。</p>
+
+        <div class="steps">
+          <div class="step">
+            <h3>克隆并安装依赖</h3>
+            <div class="term">
+              <span class="cmt"># 后端依赖（Python 3.10+）</span><br>
+              <span class="cmd">git clone https://github.com/19870034424/weibo-hotsearch-analysis.git</span><br>
+              <span class="cmd">cd weibo-hotsearch-analysis</span><br>
+              <span class="cmd">pip install -r backend/requirements.txt</span><br>
+              <span class="cmt"># 前端依赖</span><br>
+              <span class="cmd">cd frontend && npm install</span>
+            </div>
+          </div>
+          <div class="step">
+            <h3>配置（可选）</h3>
+            <p class="desc">不配置也能跑，但建议填入以提高数据成功率与解锁问答：</p>
+            <div class="term">
+              <span class="cmt"># 微博 Cookie → backend/config.yaml 的 spider.cookie（降低反爬拦截概率）</span><br>
+              <span class="cmt"># Qwen 密钥  → backend/config/api_keys.yaml 的 api_key（智能问答用）</span>
+            </div>
+          </div>
+          <div class="step">
+            <h3>启动一体化服务</h3>
+            <p class="desc">自动爬取（每 15 分钟）→ 自动分析 → API 服务 → 前端托管，一个进程全搞定：</p>
+            <div class="term">
+              <span class="cmd">cd backend && <span class="hl">python api_server.py</span></span><br>
+              <span class="cmt"># 打开 http://localhost:8000 即为完整系统</span>
+            </div>
+          </div>
+          <div class="step">
+            <h3>前端开发模式（可选）</h3>
+            <div class="term">
+              <span class="cmd">cd frontend && npm run dev</span><br>
+              <span class="cmt"># 开发热更新：http://localhost:5173（/api 自动代理到 8000）</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="note">
+          <b>提示：</b>服务启动时会立即执行第一轮爬取与分析，所以新环境跑起来几秒内就有数据；之后的采集与分析按配置间隔自动循环。
+        </div>
+
+        <footer>
+          <div class="l">微博热搜实时监控系统 · 数据来源于微博公开接口，仅用于学习与技术交流</div>
+          <div><a href="https://github.com/19870034424/weibo-hotsearch-analysis" target="_blank" rel="noopener">GitHub →</a></div>
+        </footer>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  // 滚动高亮：IntersectionObserver 监听各 section，高亮侧栏对应项
+  const navLinks = document.querySelectorAll('#nav a');
+  const sections = [...navLinks].map(a => document.querySelector(a.getAttribute('href')));
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + entry.target.id));
+      }
+    });
+  }, { rootMargin: '-20% 0px -65% 0px' });
+
+  sections.forEach(s => s && observer.observe(s));
+</script>
+</body>
+</html>
