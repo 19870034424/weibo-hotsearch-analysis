@@ -1,0 +1,7 @@
+# API密钥配置文件示例
+# 复制此文件为 api_keys.yaml 并填入实际密钥
+# 注意：api_keys.yaml 含真实密钥，已被 .gitignore 排除，严禁提交到版本库或分享
+
+qwen:
+  api_key: "sk-在这里填入你的DashScope API Key"
+  api_url: "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"

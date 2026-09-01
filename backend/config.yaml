@@ -1,0 +1,47 @@
+# 微博热搜爬虫配置文件
+
+spider:
+  # 爬虫基本设置
+  interval_minutes: 15  # 爬取间隔（分钟）
+  request_delay: 2      # 请求间隔（秒），防止被封
+  timeout: 30           # 请求超时（秒）
+
+  # User-Agent轮换
+  user_agents:
+    - Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
+    - Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0
+    - Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
+    - Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0
+    - Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15
+
+  # 重试机制
+  max_retries: 3
+  retry_delay: 5        # 重试间隔（秒）
+
+  # 目标URL
+  hotsearch_url: "https://weibo.com/ajax/side/hotSearch"
+
+  # 微博Cookie（也可用环境变量 WEIBO_COOKIE 覆盖；严禁提交到版本库）
+  cookie: ""  # 填入你自己的微博Cookie（浏览器登录微博后复制SUB字段）；也可用环境变量 WEIBO_COOKIE
+
+storage:
+  # CSV存储（当前数据规模下足够；MySQL 分支因从未启用已移除）
+  csv_path: "data/hotsearch_records.csv"
+  encoding: "utf-8-sig"
+
+  # 分区存储（避免单个文件过大）
+  partition_enabled: true
+  partition_by: "day"   # 按天分区：day / hour
+  partition_path: "data/partitions"
+
+monitor:
+  # 爬虫状态监控
+  log_path: "logs/spider_status.log"
+  report_path: "logs/health_report.json"
+
+  # 健康阈值
+  max_fail_rate: 0.3    # 失败率超过30%则报警
+  slow_request_threshold: 10  # 单次请求超过10秒则记录
+
+# 说明：仪表板用以下命令启动（端口等参数由命令行控制）
+#   python -m streamlit run visualization/dashboard.py --server.port 8501
