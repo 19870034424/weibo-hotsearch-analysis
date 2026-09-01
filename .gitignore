@@ -18,3 +18,7 @@ frontend/dist/
 
 # 本地工具
 .workbuddy/
+
+# 项目介绍页（仅本地使用，不入库）
+frontend/public/intro.html
+frontend/public/screenshots/
