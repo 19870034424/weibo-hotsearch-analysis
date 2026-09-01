@@ -25,8 +25,15 @@ const props = defineProps({
   data: {
     type: Object,
     required: true
+  },
+  // 数值后缀（默认 '%'，传 '' 可显示原始计数）
+  tooltipSuffix: {
+    type: String,
+    default: '%'
   }
 })
+
+const emit = defineEmits(['select'])
 
 const containerRef = ref(null)
 const chartCanvas = ref(null)
@@ -55,6 +62,11 @@ const createChart = () => {
       maintainAspectRatio: false,
       animation: false,
       cutout: '65%',
+      // 容差命中：点击扇区附近即可触发
+      interaction: { mode: 'nearest', intersect: false },
+      onHover: (e, elements) => {
+        e.native.target.style.cursor = elements.length ? 'pointer' : 'default'
+      },
       plugins: {
         legend: {
           position: 'bottom',
@@ -73,10 +85,20 @@ const createChart = () => {
           cornerRadius: 8,
           callbacks: {
             label: function(context) {
-              return context.label + ': ' + context.raw + '%'
+              return context.label + ': ' + context.raw + props.tooltipSuffix
             }
           }
         }
+      },
+      // 点击扇区时向父组件抛出选中的类目
+      onClick: (e, elements, chart) => {
+        if (!elements || !elements.length) return
+        const el = elements[0]
+        emit('select', {
+          index: el.index,
+          label: chart.data.labels[el.index],
+          value: chart.data.datasets[el.datasetIndex]?.data?.[el.index]
+        })
       }
     }
   })

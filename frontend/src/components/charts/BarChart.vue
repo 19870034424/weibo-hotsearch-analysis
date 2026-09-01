@@ -31,8 +31,15 @@ const props = defineProps({
   data: {
     type: Object,
     required: true
+  },
+  // 横向条形图（适合较长的中文类目标签）
+  horizontal: {
+    type: Boolean,
+    default: false
   }
 })
+
+const emit = defineEmits(['select'])
 
 const containerRef = ref(null)
 const chartCanvas = ref(null)
@@ -61,6 +68,12 @@ const createChart = () => {
       responsive: true,
       maintainAspectRatio: false,
       animation: false,
+      indexAxis: props.horizontal ? 'y' : 'x',
+      // 容差命中：细柱条不必精确点中，点附近即可触发（nearest 模式）
+      interaction: { mode: 'nearest', intersect: false },
+      onHover: (e, elements) => {
+        e.native.target.style.cursor = elements.length ? 'pointer' : 'default'
+      },
       plugins: {
         legend: {
           display: false
@@ -74,16 +87,37 @@ const createChart = () => {
           displayColors: false
         }
       },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: { color: '#6c6a64', font: { size: 12 } }
-        },
-        y: {
-          grid: { color: '#ebe6df' },
-          ticks: { color: '#6c6a64', font: { size: 12 } }
-        }
-      }
+      // 点击柱条时向父组件抛出选中的类目
+      onClick: (e, elements, chart) => {
+        if (!elements || !elements.length) return
+        const el = elements[0]
+        emit('select', {
+          index: el.index,
+          label: chart.data.labels[el.index],
+          value: chart.data.datasets[el.datasetIndex]?.data?.[el.index]
+        })
+      },
+      scales: props.horizontal
+        ? {
+            x: {
+              grid: { color: '#ebe6df' },
+              ticks: { color: '#6c6a64', font: { size: 12 } }
+            },
+            y: {
+              grid: { display: false },
+              ticks: { color: '#6c6a64', font: { size: 12 } }
+            }
+          }
+        : {
+            x: {
+              grid: { display: false },
+              ticks: { color: '#6c6a64', font: { size: 12 } }
+            },
+            y: {
+              grid: { color: '#ebe6df' },
+              ticks: { color: '#6c6a64', font: { size: 12 } }
+            }
+          }
     }
   })
 }

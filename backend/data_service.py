@@ -78,9 +78,9 @@ def classify_cluster_lifecycle(avg_duration: float, avg_appear: float,
 
 
 def build_hotsearch(records: pd.DataFrame) -> tuple:
-    """最新一次快照的榜单 + 真实的小时分布/标签分布"""
+    """最新一次快照的榜单 + 真实的小时分布/标签分布/每小时上榜TOP话题"""
     if records.empty:
-        return [], [], [], None
+        return [], [], [], None, []
 
     records = records.copy()
     records['crawl_time'] = pd.to_datetime(records['crawl_time'])
@@ -108,6 +108,19 @@ def build_hotsearch(records: pd.DataFrame) -> tuple:
         for h in range(24)
     ]
 
+    # 每小时上榜话题的热度TOP5（前端点击小时柱展开详情用）
+    hour_top = {}
+    for hour, group in records.groupby(records['crawl_time'].dt.hour):
+        top = group.nlargest(5, 'hot_value')[['title', 'hot_value']]
+        hour_top[int(hour)] = [
+            {'title': str(r['title']), 'hot_value': int(r['hot_value'])}
+            for _, r in top.iterrows()
+        ]
+    hourly_topics = [
+        {'hour': f'{h:02d}:00', 'topics': hour_top.get(h, [])}
+        for h in range(24)
+    ]
+
     # 标签分布（空标签显示为"无"）
     label_counts = records['label'].fillna('').value_counts()
     total = int(label_counts.sum())
@@ -120,7 +133,7 @@ def build_hotsearch(records: pd.DataFrame) -> tuple:
         for lbl, cnt in label_counts.items()
     ]
 
-    return hotsearch_records, hourly_distribution, label_distribution, last_time
+    return hotsearch_records, hourly_distribution, label_distribution, last_time, hourly_topics
 
 
 def build_clusters(clustering: pd.DataFrame) -> list:
@@ -328,7 +341,7 @@ def build_payload() -> dict:
     anomaly = _load(os.path.join(DATA_DIR, 'anomaly_results.csv'))
     word_freq = _load(os.path.join(DATA_DIR, 'word_frequency.csv'))
 
-    hotsearch_records, hourly_distribution, label_distribution, last_crawl = build_hotsearch(records)
+    hotsearch_records, hourly_distribution, label_distribution, last_crawl, hourly_topics = build_hotsearch(records)
 
     # 情感：真实分析结果，emotion_type 已由后端重新定义
     sentiment_results = []
@@ -385,6 +398,7 @@ def build_payload() -> dict:
         },
         'hotsearchRecords': hotsearch_records,
         'hourlyDistribution': hourly_distribution,
+        'hourlyTopics': hourly_topics,
         'labelDistribution': label_distribution,
         'clusterDistribution': cluster_distribution,
         'sentimentResults': sentiment_results,
